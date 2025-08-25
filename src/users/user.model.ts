@@ -34,6 +34,7 @@ export class User {
   @Prop({ default: true })
   isActive: boolean;
 
+  // Mongoose automatically adds these with timestamps: true
   createdAt: Date;
   updatedAt: Date;
 }

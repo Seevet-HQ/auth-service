@@ -35,7 +35,6 @@ services:
       - MONGO_INITDB_DATABASE=auth-service-dev
     volumes:
       - mongo_dev_data:/data/db
-      - ./mongo-init:/docker-entrypoint-initdb.d
     networks:
       - auth-network
     restart: unless-stopped

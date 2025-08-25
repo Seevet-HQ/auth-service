@@ -20,7 +20,7 @@ export class CustomJwtService {
     });
   }
 
-  generateRefreshToken(payload: any): string {
+  async generateRefreshToken(payload: any): Promise<string> {
     const token = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('jwt.refreshSecret'),
       expiresIn: this.configService.get<string>('jwt.refreshExpiresIn'),
@@ -30,7 +30,7 @@ export class CustomJwtService {
     const expiresIn = this.configService.get<number>(
       'jwt.refreshExpiresInSeconds',
     );
-    this.redisService.set(`refresh_token:${payload.id}`, token, expiresIn);
+    await this.redisService.set(`refresh_token:${payload.id}`, token, expiresIn);
 
     return token;
   }
@@ -83,7 +83,7 @@ export class CustomJwtService {
       id: payload.id,
       email: payload.email,
     });
-    const newRefreshToken = this.generateRefreshToken({
+    const newRefreshToken = await this.generateRefreshToken({
       id: payload.id,
       email: payload.email,
     });

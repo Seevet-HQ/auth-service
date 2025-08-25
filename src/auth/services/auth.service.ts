@@ -69,7 +69,7 @@ export class AuthService {
       email: savedUser.email,
     });
 
-    const refreshToken = this.jwtService.generateRefreshToken({
+    const refreshToken = await this.jwtService.generateRefreshToken({
       id: savedUser._id.toString(),
       email: savedUser.email,
     });
@@ -132,7 +132,7 @@ export class AuthService {
       email: user.email,
     });
 
-    const refreshToken = this.jwtService.generateRefreshToken({
+    const refreshToken = await this.jwtService.generateRefreshToken({
       id: user._id.toString(),
       email: user.email,
     });
