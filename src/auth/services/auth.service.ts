@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import { Model } from 'mongoose';
+import { RedisService } from '../../services/redis.service';
 import { User, UserDocument } from '../../users/user.model';
 import { RegisterDto } from '../dto/register.dto';
 
@@ -40,6 +41,7 @@ export class AuthService {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly redisService: RedisService,
   ) {}
 
   generateAccessToken(payload: JwtPayload): string {
@@ -56,41 +58,33 @@ export class AuthService {
     });
   }
 
-  async storeRefreshToken(userId: string, refreshToken: string): Promise<void> {
-    const expiresInSeconds =
-      this.configService.get<number>('jwt.refreshExpiresInSeconds') || 604800;
-    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
+  private getRefreshTokenKey(userId: string): string {
+    return `refresh_token:${userId}`;
+  }
 
-    await this.userModel.findByIdAndUpdate(
-      userId,
-      {
-        refreshToken,
-        refreshTokenExpiresAt: expiresAt,
-      },
-      { new: true },
+  async storeRefreshToken(userId: string, refreshToken: string): Promise<void> {
+    const expiresInSeconds = this.configService.get<number>('jwt.refreshExpiresInSeconds') || 604800;
+    
+    // Store in Redis with TTL
+    await this.redisService.set(
+      this.getRefreshTokenKey(userId),
+      refreshToken,
+      expiresInSeconds
     );
+    
+    this.logger.log(`Stored refresh token in Redis for user: ${userId} with TTL: ${expiresInSeconds}s`);
   }
 
   async verifyRefreshToken(token: string): Promise<JwtPayload | null> {
     try {
       const payload = this.jwtService.verify(token, {
         secret: this.configService.get<string>('jwt.refreshSecret'),
-      });
+      }) as JwtPayload;
 
-      // Check if token exists in MongoDB and is not expired
-      const user = await this.userModel.findOne({ refreshToken: token });
-      if (!user) {
-        this.logger.error('Refresh token not found in database');
-        return null;
-      }
-
-      // Check if token is expired
-      if (
-        user.refreshTokenExpiresAt &&
-        user.refreshTokenExpiresAt < new Date()
-      ) {
-        this.logger.error('Refresh token expired');
-        await this.revokeRefreshToken(user._id.toString());
+      // Check if token exists in Redis
+      const storedToken = await this.redisService.get(this.getRefreshTokenKey(payload.id));
+      if (!storedToken || storedToken !== token) {
+        this.logger.error('Refresh token not found in Redis or token mismatch');
         return null;
       }
 
@@ -103,36 +97,17 @@ export class AuthService {
 
   async revokeRefreshToken(userId: string): Promise<void> {
     try {
-      await this.userModel.findByIdAndUpdate(userId, {
-        $unset: { refreshToken: 1, refreshTokenExpiresAt: 1 },
-      });
+      await this.redisService.del(this.getRefreshTokenKey(userId));
       this.logger.log(`Successfully revoked refresh token for user: ${userId}`);
     } catch (error) {
-      this.logger.error(
-        `Failed to revoke refresh token for user: ${userId}`,
-        error,
-      );
+      this.logger.error(`Failed to revoke refresh token for user: ${userId}`, error);
       throw error;
     }
   }
 
   async cleanupExpiredRefreshTokens(): Promise<void> {
-    try {
-      const result = await this.userModel.updateMany(
-        {
-          refreshTokenExpiresAt: { $lt: new Date() },
-        },
-        {
-          $unset: { refreshToken: 1, refreshTokenExpiresAt: 1 },
-        },
-      );
-      this.logger.log(
-        `Cleaned up ${result.modifiedCount} expired refresh tokens`,
-      );
-    } catch (error) {
-      this.logger.error('Failed to cleanup expired refresh tokens', error);
-      throw error;
-    }
+    // Redis automatically handles TTL, so no manual cleanup needed
+    this.logger.log('Redis automatically handles refresh token expiration');
   }
 
   async register(registerDto: RegisterDto): Promise<AuthResponse> {
@@ -178,7 +153,7 @@ export class AuthService {
       email: savedUser.email,
     });
 
-    // Store refresh token
+    // Store refresh token in Redis
     await this.storeRefreshToken(savedUser._id.toString(), refreshToken);
 
     this.logger.log(`User registered successfully: ${email}`);
@@ -197,7 +172,10 @@ export class AuthService {
     };
   }
 
-  async login(email: string, password: string): Promise<AuthResponse> {
+  async login(
+    email: string,
+    password: string,
+  ): Promise<AuthResponse> {
     // Find user by email
     const user = await this.userModel.findOne({ email });
     if (!user) {
@@ -230,7 +208,7 @@ export class AuthService {
       email: user.email,
     });
 
-    // Store refresh token
+    // Store refresh token in Redis
     await this.storeRefreshToken(user._id.toString(), refreshToken);
 
     this.logger.log(`User logged in successfully: ${email}`);
@@ -267,7 +245,7 @@ export class AuthService {
       email: payload.email,
     });
 
-    // Store the new refresh token
+    // Store the new refresh token in Redis
     await this.storeRefreshToken(payload.id, newRefreshToken);
 
     // Get user info for the response

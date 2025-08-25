@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import configuration from './config/configuration';
 import { loggerConfig } from './config/logger.config';
 import { DatabaseModule } from './database/database.module';
+import { RedisService } from './services/redis.service';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -26,6 +27,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     UsersModule,
   ],
-  providers: [AppResolver],
+  providers: [AppResolver, RedisService],
+  exports: [RedisService],
 })
 export class AppModule {}

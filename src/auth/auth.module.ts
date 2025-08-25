@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
+import { RedisService } from '../services/redis.service';
 import { User, UserSchema } from '../users/user.model';
 import { AuthResolver } from './graphql/auth.resolver';
 import { AuthService } from './services/auth.service';
@@ -20,7 +21,7 @@ import { AuthService } from './services/auth.service';
       inject: [ConfigService],
     }),
   ],
-  providers: [AuthService, AuthResolver],
+  providers: [AuthService, AuthResolver, RedisService],
   exports: [AuthService],
 })
 export class AuthModule {}
