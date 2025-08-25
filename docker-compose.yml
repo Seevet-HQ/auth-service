@@ -9,7 +9,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=mongodb://mongo:27017/auth-service
+      - MONGODB_URI=mongodb://admin:password123@mongo:27017/auth-service?authSource=admin
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=

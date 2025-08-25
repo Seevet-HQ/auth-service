@@ -4,8 +4,8 @@ import { JwtService as NestJwtService } from '@nestjs/jwt';
 import { RedisService } from '../../services/redis.service';
 
 @Injectable()
-export class JwtService {
-  private readonly logger = new Logger(JwtService.name);
+export class CustomJwtService {
+  private readonly logger = new Logger(CustomJwtService.name);
 
   constructor(
     private readonly jwtService: NestJwtService,
@@ -15,19 +15,19 @@ export class JwtService {
 
   generateAccessToken(payload: any): string {
     return this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_SECRET'),
-      expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRES_IN', '15m'),
+      secret: this.configService.get<string>('jwt.secret'),
+      expiresIn: this.configService.get<string>('jwt.accessExpiresIn'),
     });
   }
 
   generateRefreshToken(payload: any): string {
     const token = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '7d'),
+      secret: this.configService.get<string>('jwt.refreshSecret'),
+      expiresIn: this.configService.get<string>('jwt.refreshExpiresIn'),
     });
 
     // Store refresh token in Redis with expiration
-    const expiresIn = this.configService.get<number>('JWT_REFRESH_EXPIRES_IN_SECONDS', 7 * 24 * 60 * 60);
+    const expiresIn = this.configService.get<number>('jwt.refreshExpiresInSeconds');
     this.redisService.set(`refresh_token:${payload.id}`, token, expiresIn);
 
     return token;
@@ -36,7 +36,7 @@ export class JwtService {
   verifyAccessToken(token: string): any {
     try {
       return this.jwtService.verify(token, {
-        secret: this.configService.get<string>('JWT_SECRET'),
+        secret: this.configService.get<string>('jwt.secret'),
       });
     } catch (error) {
       this.logger.error('Failed to verify access token', error);
@@ -44,14 +44,14 @@ export class JwtService {
     }
   }
 
-  verifyRefreshToken(token: string): any {
+  async verifyRefreshToken(token: string): Promise<any> {
     try {
       const payload = this.jwtService.verify(token, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        secret: this.configService.get<string>('jwt.refreshSecret'),
       });
 
       // Check if token exists in Redis
-      const storedToken = this.redisService.get(`refresh_token:${payload.id}`);
+      const storedToken = await this.redisService.get(`refresh_token:${payload.id}`);
       if (!storedToken || storedToken !== token) {
         return null;
       }
@@ -68,7 +68,7 @@ export class JwtService {
   }
 
   async refreshTokens(refreshToken: string): Promise<{ accessToken: string; refreshToken: string } | null> {
-    const payload = this.verifyRefreshToken(refreshToken);
+    const payload = await this.verifyRefreshToken(refreshToken);
     if (!payload) {
       return null;
     }

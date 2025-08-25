@@ -8,6 +8,8 @@ import { loggerConfig } from './config/logger.config';
 import configuration from './config/configuration';
 import { HealthController } from './health/health.controller';
 import { RedisService } from './services/redis.service';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { RedisService } from './services/redis.service';
     }),
     DatabaseModule,
     loggerConfig,
+    AuthModule,
+    UsersModule,
   ],
   controllers: [HealthController],
   providers: [AppResolver, RedisService],
