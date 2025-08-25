@@ -1,8 +1,8 @@
 import {
-  Injectable,
-  Logger,
-  OnModuleDestroy,
-  OnModuleInit,
+    Injectable,
+    Logger,
+    OnModuleDestroy,
+    OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, RedisClientType } from 'redis';
@@ -53,7 +53,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     try {
       const result = await this.redisClient.get(key);
       this.logger.debug(
-        `Redis GET ${key}: ${result ? result.substring(0, 50) + '...' : 'null'}`,
+        `Redis GET ${key}: ${this.shouldRedact(key) ? '[REDACTED]' : (result ? result.substring(0, 50) + '...' : 'null')}`,
       );
       return result;
     } catch (error) {
@@ -65,7 +65,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async set(key: string, value: string, ttl?: number): Promise<void> {
     try {
       this.logger.debug(
-        `Redis SET ${key}: ${value.substring(0, 50)}... (length: ${value.length})`,
+        `Redis SET ${key}: ${this.shouldRedact(key) ? '[REDACTED]' : value.substring(0, 50) + '...'} (length: ${value.length})`,
       );
       if (ttl) {
         await this.redisClient.setEx(key, ttl, value);
@@ -111,5 +111,20 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     if (this.redisClient) {
       await this.redisClient.quit();
     }
+  }
+
+  // Helper method to determine if a key contains sensitive data
+  private shouldRedact(key: string): boolean {
+    const sensitivePatterns = [
+      'refresh_token',
+      'blacklisted_access_token',
+      'password',
+      'secret',
+      'key',
+      'auth',
+      'jwt'
+    ];
+    
+    return sensitivePatterns.some(pattern => key.toLowerCase().includes(pattern));
   }
 }

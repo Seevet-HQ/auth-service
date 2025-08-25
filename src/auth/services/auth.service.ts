@@ -1,13 +1,14 @@
 import {
-    ConflictException,
-    Injectable,
-    Logger,
-    UnauthorizedException,
+  ConflictException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
+import { createHash, randomUUID } from 'crypto';
 import { Model } from 'mongoose';
 import { RedisService } from '../../services/redis.service';
 import { User, UserDocument } from '../../users/user.model';
@@ -48,6 +49,7 @@ export class AuthService {
     return this.jwtService.sign(payload, {
       secret: this.configService.get<string>('jwt.secret'),
       expiresIn: this.configService.get<string>('jwt.accessExpiresIn'),
+      jwtid: randomUUID(), // Unique ID to ensure tokens are different even within the same second
     });
   }
 
@@ -55,11 +57,18 @@ export class AuthService {
     return this.jwtService.sign(payload, {
       secret: this.configService.get<string>('jwt.refreshSecret'),
       expiresIn: this.configService.get<string>('jwt.refreshExpiresIn') || '7d',
+      jwtid: randomUUID(), // Unique ID to ensure tokens are different even within the same second
     });
   }
 
   private getRefreshTokenKey(userId: string): string {
     return `refresh_token:${userId}`;
+  }
+
+  private getAccessTokenBlacklistKey(token: string): string {
+    // Use a hash of the token as the key to avoid storing the full token
+    const hash = createHash('sha256').update(token).digest('hex');
+    return `blacklisted_access_token:${hash}`;
   }
 
   async storeRefreshToken(userId: string, refreshToken: string): Promise<void> {
@@ -75,13 +84,49 @@ export class AuthService {
     this.logger.log(`Stored refresh token in Redis for user: ${userId} with TTL: ${expiresInSeconds}s`);
   }
 
+  async blacklistAccessToken(token: string): Promise<void> {
+    try {
+      // Get the token's expiration time to set the same TTL in Redis
+      const payload = this.jwtService.verify(token, {
+        secret: this.configService.get<string>('jwt.secret'),
+      }) as JwtPayload & { exp: number };
+      
+      if (payload && payload.exp) {
+        const now = Math.floor(Date.now() / 1000);
+        const ttl = payload.exp - now;
+        
+        if (ttl > 0) {
+          // Store the blacklisted token with TTL matching the JWT expiration
+          await this.redisService.set(
+            this.getAccessTokenBlacklistKey(token),
+            'revoked',
+            ttl
+          );
+          this.logger.log(`Blacklisted access token with TTL: ${ttl}s`);
+        }
+      }
+    } catch (error) {
+      this.logger.error('Failed to blacklist access token', error);
+    }
+  }
+
+  async isAccessTokenBlacklisted(token: string): Promise<boolean> {
+    try {
+      const blacklisted = await this.redisService.exists(this.getAccessTokenBlacklistKey(token));
+      return blacklisted;
+    } catch (error) {
+      this.logger.error('Failed to check if access token is blacklisted', error);
+      return false;
+    }
+  }
+
   async verifyRefreshToken(token: string): Promise<JwtPayload | null> {
     try {
       const payload = this.jwtService.verify(token, {
         secret: this.configService.get<string>('jwt.refreshSecret'),
       }) as JwtPayload;
 
-      // Check if token exists in Redis
+      // Check if token exists in Redis and matches exactly
       const storedToken = await this.redisService.get(this.getRefreshTokenKey(payload.id));
       if (!storedToken || storedToken !== token) {
         this.logger.error('Refresh token not found in Redis or token mismatch');
@@ -172,19 +217,11 @@ export class AuthService {
     };
   }
 
-  async login(
-    email: string,
-    password: string,
-  ): Promise<AuthResponse> {
+  async login(email: string, password: string): Promise<AuthResponse> {
     // Find user by email
     const user = await this.userModel.findOne({ email });
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
-    }
-
-    // Check if user is active
-    if (!user.isActive) {
-      throw new UnauthorizedException('Account is deactivated');
     }
 
     // Verify password
@@ -192,10 +229,6 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
-
-    // Update last login
-    user.lastLoginAt = new Date();
-    await user.save();
 
     // Generate tokens
     const accessToken = this.generateAccessToken({
@@ -208,7 +241,10 @@ export class AuthService {
       email: user.email,
     });
 
-    // Store refresh token in Redis
+    // Revoke any existing refresh token before storing the new one
+    await this.revokeRefreshToken(user._id.toString());
+    
+    // Store the new refresh token in Redis
     await this.storeRefreshToken(user._id.toString(), refreshToken);
 
     this.logger.log(`User logged in successfully: ${email}`);
@@ -228,10 +264,20 @@ export class AuthService {
   }
 
   async refreshTokens(refreshToken: string): Promise<AuthResponse> {
-    // Verify the refresh token
-    const payload = await this.verifyRefreshToken(refreshToken);
-    if (!payload) {
+    // First check if this token matches the currently stored token
+    // This prevents old tokens from being used for refresh
+    const payload = this.jwtService.verify(refreshToken, {
+      secret: this.configService.get<string>('jwt.refreshSecret'),
+    }) as JwtPayload;
+
+    if (!payload || !payload.id) {
       throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    // Check if this token is the currently stored one
+    const currentStoredToken = await this.redisService.get(this.getRefreshTokenKey(payload.id));
+    if (!currentStoredToken || currentStoredToken !== refreshToken) {
+      throw new UnauthorizedException('Refresh token has been superseded or is invalid');
     }
 
     // Generate new tokens
@@ -245,6 +291,9 @@ export class AuthService {
       email: payload.email,
     });
 
+    // Revoke the old refresh token first
+    await this.revokeRefreshToken(payload.id);
+    
     // Store the new refresh token in Redis
     await this.storeRefreshToken(payload.id, newRefreshToken);
 
@@ -268,9 +317,14 @@ export class AuthService {
     };
   }
 
-  async logout(userId: string): Promise<void> {
+  async logout(userId: string, accessToken: string): Promise<void> {
+    // Revoke refresh token
     await this.revokeRefreshToken(userId);
-    this.logger.log(`User logged out: ${userId}`);
+    
+    // Blacklist access token
+    await this.blacklistAccessToken(accessToken);
+    
+    this.logger.log(`User logged out: ${userId}, access token blacklisted`);
   }
 
   async getProfile(userId: string): Promise<{

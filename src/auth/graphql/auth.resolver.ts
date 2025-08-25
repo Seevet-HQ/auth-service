@@ -1,5 +1,7 @@
 import { UseGuards } from '@nestjs/common';
 import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Throttle } from '@nestjs/throttler';
+import { AccessToken } from '../decorators/access-token.decorator';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { AuthService } from '../services/auth.service';
@@ -15,6 +17,7 @@ export class AuthResolver {
   constructor(private readonly authService: AuthService) {}
 
   @Mutation(() => AuthResponseObject)
+  @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 registration attempts per 5 minutes
   async register(
     @Args('input') input: RegisterInput,
   ): Promise<AuthResponseObject> {
@@ -39,6 +42,7 @@ export class AuthResolver {
   }
 
   @Mutation(() => AuthResponseObject)
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 login attempts per minute
   async login(@Args('input') input: LoginInput): Promise<AuthResponseObject> {
     const authResponse = await this.authService.login(
       input.email,
@@ -54,6 +58,7 @@ export class AuthResolver {
   }
 
   @Mutation(() => AuthResponseObject)
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 refresh attempts per minute
   async refreshTokens(
     @Args('input') input: RefreshTokenInput,
   ): Promise<AuthResponseObject> {
@@ -71,8 +76,9 @@ export class AuthResolver {
 
   @Mutation(() => LogoutResponseObject)
   @UseGuards(JwtAuthGuard)
-  async logout(@CurrentUser() user: any): Promise<LogoutResponseObject> {
-    await this.authService.logout(user.id);
+  @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 logout attempts per minute
+  async logout(@CurrentUser() user: any, @AccessToken() accessToken: string): Promise<LogoutResponseObject> {
+    await this.authService.logout(user.id, accessToken);
     return { message: 'Logged out successfully' };
   }
 

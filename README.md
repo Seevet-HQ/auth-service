@@ -97,256 +97,216 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
 
-# Auth Service
+# 🔒 Auth Service
 
-A NestJS-based authentication service with GraphQL API, MongoDB, Redis, and comprehensive logging.
+A secure NestJS authentication service with GraphQL, MongoDB, and Redis.
 
-## Features
+## 🚨 Security Features
 
-- 🚀 NestJS with GraphQL
-- 🗄️ MongoDB integration with Mongoose
-- 🔴 Redis for caching and sessions
-- 📝 Winston logging with daily rotation
-- 🐳 Docker and Docker Compose support
-- 🔍 Health check endpoints
-- 🔧 Environment-based configuration
+This service implements comprehensive security measures:
 
-## Prerequisites
+- **JWT Authentication** with secure token management
+- **Rate Limiting** to prevent brute force attacks
+- **Strong Password Validation** with complexity requirements
+- **Security Headers** via Helmet
+- **CORS Protection** with origin restrictions
+- **GraphQL Security** (playground/introspection disabled in production)
+- **Secure Logging** with sensitive data redaction
+- **Fail-Secure Design** for security-critical operations
+
+## 🚀 Quick Start
+
+### Prerequisites
 
 - Node.js 18+
-- Docker and Docker Compose
-- npm or yarn
+- MongoDB 7.0+
+- Redis 7.0+
+- Docker & Docker Compose (optional)
 
-## Quick Start with Docker
-
-### 1. Clone and Setup
+### Installation
 
 ```bash
+# Clone the repository
 git clone <repository-url>
 cd auth-service
-cp env.example .env
-# Edit .env file with your configuration
-```
 
-### 2. Start Services
-
-```bash
-# Development mode with hot reloading
-docker-compose -f docker-compose.dev.yml up --build
-
-# Production mode
-docker-compose up --build
-```
-
-### 3. Access Services
-
-- **Auth Service**: http://localhost:3000
-- **GraphQL Playground**: http://localhost:3000/graphql
-- **Health Check**: http://localhost:3000/health
-- **MongoDB Express**: http://localhost:8081 (admin/password123)
-- **MongoDB**: localhost:27017
-- **Redis**: localhost:6379
-
-## Development Setup
-
-### 1. Install Dependencies
-
-```bash
+# Install dependencies
 npm install
-```
 
-### 2. Environment Configuration
-
-Copy the example environment file and configure it:
-
-```bash
+# Copy environment file
 cp env.example .env
+
+# Generate secure secrets (IMPORTANT for production)
+./scripts/generate-secrets.sh
+
+# Update .env with generated secrets
 ```
 
-Edit `.env` with your local configuration.
+### Environment Variables
 
-### 3. Start Development Services
-
+**Required for production:**
 ```bash
-# Start only MongoDB and Redis
-docker-compose -f docker-compose.dev.yml up mongo redis mongo-express
-
-# Start the application locally
-npm run start:dev
+JWT_SECRET=<64-char-random-string>
+JWT_REFRESH_SECRET=<64-char-random-string>
+MONGODB_URI=mongodb://user:password@localhost:27017/auth-service
+REDIS_PASSWORD=<secure-redis-password>
+ALLOWED_ORIGINS=https://yourdomain.com
 ```
-
-### 4. Run Tests
-
-```bash
-npm run test
-npm run test:e2e
-```
-
-## Docker Commands
 
 ### Development
 
 ```bash
-# Start development environment
-docker-compose -f docker-compose.dev.yml up --build
+# Start development server
+npm run start:dev
 
-# Start specific services
-docker-compose -f docker-compose.dev.yml up mongo redis
-
-# View logs
-docker-compose -f docker-compose.dev.yml logs -f auth-service
-
-# Stop services
-docker-compose -f docker-compose.dev.yml down
+# Start with Docker
+docker-compose -f docker-compose.dev.yml up
 ```
 
 ### Production
 
 ```bash
-# Start production environment
-docker-compose up --build
+# Build the application
+npm run build
 
-# Scale services
-docker-compose up --scale auth-service=3
+# Start production server
+npm run start:prod
 
-# View logs
-docker-compose logs -f auth-service
-
-# Stop services
-docker-compose down
+# Or use Docker
+docker-compose up -d
 ```
 
-## Database Management
-
-### MongoDB
-
-- **Connection String**: `mongodb://admin:password123@localhost:27017/auth-service`
-- **Admin User**: admin/password123
-- **Service User**: auth-service-user/auth-service-password
-
-### Redis
-
-- **Host**: localhost
-- **Port**: 6379
-- **Password**: (none by default)
-- **Database**: 0
-
-## Logging
-
-The application uses Winston for logging with the following features:
-
-- **Console Logging**: Colored, formatted logs for development
-- **File Logging**: Daily rotated log files
-- **Error Logging**: Separate error log files with stack traces
-- **Log Rotation**: Automatic log rotation with compression
-
-### Log Files
-
-- `logs/combined-YYYY-MM-DD.log` - All application logs
-- `logs/error-YYYY-MM-DD.log` - Error logs only
-
-### Log Configuration
-
-Logs are configured via environment variables:
-
-- `LOG_LEVEL`: Log level (default: info)
-- `LOG_MAX_FILES`: Maximum log files to keep (default: 14d)
-- `LOG_MAX_SIZE`: Maximum log file size (default: 20m)
-
-## Health Checks
-
-The service provides health check endpoints:
-
-- **GET /health**: Overall service health including MongoDB and Redis connections
-- **Docker Health Check**: Built-in Docker health check for container orchestration
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NODE_ENV` | Environment mode | development |
-| `PORT` | Service port | 3000 |
-| `MONGODB_URI` | MongoDB connection string | mongodb://localhost:27017/auth-service |
-| `REDIS_HOST` | Redis host | localhost |
-| `REDIS_PORT` | Redis port | 6379 |
-| `REDIS_PASSWORD` | Redis password | (empty) |
-| `REDIS_DB` | Redis database | 0 |
-| `LOG_LEVEL` | Log level | info |
-| `LOG_MAX_FILES` | Max log files | 14d |
-| `LOG_MAX_SIZE` | Max log size | 20m |
-
-## Project Structure
-
-```
-auth-service/
-├── src/
-│   ├── config/          # Configuration files
-│   ├── database/        # Database connection modules
-│   ├── health/          # Health check endpoints
-│   └── app.module.ts    # Main application module
-├── logs/                # Application logs
-├── mongo-init/          # MongoDB initialization scripts
-├── docker-compose.yml   # Production Docker Compose
-├── docker-compose.dev.yml # Development Docker Compose
-├── Dockerfile           # Production Docker image
-├── Dockerfile.dev       # Development Docker image
-└── .dockerignore        # Docker build exclusions
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Port Already in Use**
-   ```bash
-   # Check what's using the port
-   lsof -i :3000
-   # Kill the process or change the port in docker-compose.yml
-   ```
-
-2. **MongoDB Connection Failed**
-   ```bash
-   # Check MongoDB container status
-   docker-compose ps mongo
-   # View MongoDB logs
-   docker-compose logs mongo
-   ```
-
-3. **Redis Connection Failed**
-   ```bash
-   # Check Redis container status
-   docker-compose ps redis
-   # View Redis logs
-   docker-compose logs redis
-   ```
-
-4. **Permission Issues with Logs**
-   ```bash
-   # Fix log directory permissions
-   sudo chown -R $USER:$USER logs/
-   ```
-
-### Reset Everything
+## 🔒 Security Testing
 
 ```bash
-# Stop and remove all containers, networks, and volumes
-docker-compose down -v
+# Run security tests
+./scripts/security-test.sh
 
-# Remove all images
-docker-compose down --rmi all
-
-# Start fresh
-docker-compose up --build
+# Generate secure secrets
+./scripts/generate-secrets.sh
 ```
 
-## Contributing
+## 🛡️ Security Checklist
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+- [ ] Environment variables configured with secure values
+- [ ] JWT secrets are 64+ characters and randomly generated
+- [ ] MongoDB and Redis have strong passwords
+- [ ] CORS origins are restricted to trusted domains
+- [ ] GraphQL playground disabled in production
+- [ ] Rate limiting is active
+- [ ] Security headers are present
+- [ ] Sensitive data is not logged
+- [ ] Fail-secure policies are implemented
 
-## License
+## 📚 API Documentation
 
-This project is licensed under the MIT License.
+### GraphQL Endpoint
+
+- **Development**: http://localhost:3000/graphql
+- **Production**: https://yourdomain.com/graphql
+
+### Authentication Mutations
+
+```graphql
+# Register new user
+mutation {
+  register(input: {
+    email: "user@example.com"
+    username: "username"
+    password: "SecurePassword123!"
+    firstName: "John"
+    lastName: "Doe"
+  }) {
+    accessToken
+    refreshToken
+    user {
+      id
+      email
+      username
+    }
+  }
+}
+
+# Login
+mutation {
+  login(input: {
+    email: "user@example.com"
+    password: "SecurePassword123!"
+  }) {
+    accessToken
+    refreshToken
+    user {
+      id
+      email
+      username
+    }
+  }
+}
+
+# Refresh token
+mutation {
+  refreshToken(input: {
+    refreshToken: "your-refresh-token"
+  }) {
+    accessToken
+    refreshToken
+    user {
+      id
+      email
+      username
+    }
+  }
+}
+
+# Logout
+mutation {
+  logout(input: {
+    refreshToken: "your-refresh-token"
+  }) {
+    message
+  }
+}
+```
+
+## 🏗️ Architecture
+
+```
+src/
+├── auth/                 # Authentication module
+│   ├── guards/          # JWT authentication guards
+│   ├── services/        # Auth business logic
+│   └── graphql/         # GraphQL resolvers and types
+├── config/              # Configuration management
+├── database/            # Database connection
+├── services/            # Shared services (Redis, Security)
+└── users/               # User management
+```
+
+## 🔍 Monitoring & Logging
+
+The service includes comprehensive security logging:
+
+- Failed login attempts
+- Successful logins
+- Token revocations
+- Rate limit violations
+- Suspicious activities
+
+All security events are logged with IP addresses, user agents, and timestamps.
+
+## 🚨 Security Incident Response
+
+If you discover a security vulnerability:
+
+1. **Do not** create a public issue
+2. **Do** contact the security team immediately
+3. **Do** follow responsible disclosure practices
+4. **Do** document the incident and response
+
+## 📄 License
+
+[Your License Here]
+
+## 🤝 Contributing
+
+Please read our security guidelines before contributing. All code changes must pass security review.
