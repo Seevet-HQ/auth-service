@@ -4,15 +4,15 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 
 ## Project Overview
 
-This is a NestJS authentication service written in TypeScript. NestJS is a progressive Node.js framework that uses decorators and dependency injection to build scalable server-side applications. The project follows the standard NestJS project structure with modular architecture.
+This is a NestJS authentication service written in TypeScript, built exclusively with GraphQL. NestJS is a progressive Node.js framework that uses decorators and dependency injection to build scalable server-side applications. The project follows the standard NestJS project structure with modular architecture.
 
 ## Architecture
 
 ### Core Structure
 - **Modules**: The application is organized into modules (`app.module.ts`), which are the basic building blocks that group related functionality
-- **Controllers**: Handle HTTP requests and responses (`app.controller.ts`)  
-- **Services**: Contain business logic and can be injected into controllers (`app.service.ts`)
-- **Decorators**: Extensively used for defining routes (`@Get()`, `@Post()`), dependency injection (`@Injectable()`), and module configuration (`@Module()`)
+- **Resolvers**: Handle GraphQL queries and mutations (`auth.resolver.ts`)
+- **Services**: Contain business logic and can be injected into resolvers (`auth.service.ts`)
+- **Decorators**: Extensively used for defining GraphQL operations (`@Query()`, `@Mutation()`), dependency injection (`@Injectable()`), and module configuration (`@Module()`)
 
 ### Key Files
 - `src/main.ts` - Application entry point, bootstraps the NestJS application and starts listening on port 3000
@@ -58,9 +58,6 @@ npm run test:watch
 # Run tests with coverage
 npm run test:cov
 
-# Run end-to-end tests
-npm run test:e2e
-
 # Debug tests
 npm run test:debug
 ```
@@ -77,7 +74,6 @@ npm run format
 ## Testing Architecture
 
 - **Unit Tests**: Located alongside source files with `.spec.ts` suffix, use Jest testing framework
-- **E2E Tests**: Located in `test/` directory with `.e2e-spec.ts` suffix, configured via `test/jest-e2e.json`
 - **Coverage**: Generated in `coverage/` directory when running `npm run test:cov`
 
 ## TypeScript Configuration
@@ -99,4 +95,5 @@ The project uses modern TypeScript settings:
 - The application runs on port 3000 by default (configurable via PORT environment variable)
 - Hot reload is available in development mode via `npm run start:dev`
 - The project uses dependency injection extensively - services should be decorated with `@Injectable()` and registered in module providers
-- When adding new features, follow the NestJS pattern: create modules, controllers, and services as separate files and wire them together in the module decorator
+- When adding new features, follow the NestJS pattern: create modules, resolvers, and services as separate files and wire them together in the module decorator
+- This service is GraphQL-only - all API operations are handled through GraphQL queries and mutations

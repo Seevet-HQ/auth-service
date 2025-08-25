@@ -3,8 +3,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../../users/user.model';
-import { AuthResponseDto, UserResponseDto } from '../dto/auth-response.dto';
-import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { CustomJwtService } from './jwt.service';
 
@@ -17,7 +15,18 @@ export class AuthService {
     private readonly jwtService: CustomJwtService,
   ) {}
 
-  async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
+  async register(registerDto: RegisterDto): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: {
+      id: string;
+      email: string;
+      username: string;
+      firstName: string;
+      lastName: string;
+      role: string;
+    };
+  }> {
     const { email, username, password, firstName, lastName } = registerDto;
 
     // Check if user already exists
@@ -76,9 +85,18 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto): Promise<AuthResponseDto> {
-    const { email, password } = loginDto;
-
+  async login(email: string, password: string): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: {
+      id: string;
+      email: string;
+      username: string;
+      firstName: string;
+      lastName: string;
+      role: string;
+    };
+  }> {
     // Find user by email
     const user = await this.userModel.findOne({ email });
     if (!user) {
@@ -127,7 +145,18 @@ export class AuthService {
     };
   }
 
-  async refreshTokens(refreshToken: string): Promise<AuthResponseDto> {
+  async refreshTokens(refreshToken: string): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: {
+      id: string;
+      email: string;
+      username: string;
+      firstName: string;
+      lastName: string;
+      role: string;
+    };
+  }> {
     const tokens = await this.jwtService.refreshTokens(refreshToken);
     if (!tokens) {
       throw new UnauthorizedException('Invalid refresh token');
@@ -163,7 +192,18 @@ export class AuthService {
     this.logger.log(`User logged out: ${userId}`);
   }
 
-  async getProfile(userId: string): Promise<UserResponseDto> {
+  async getProfile(userId: string): Promise<{
+    id: string;
+    email: string;
+    username: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+    isEmailVerified: boolean;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  }> {
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new UnauthorizedException('User not found');

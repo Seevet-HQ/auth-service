@@ -38,7 +38,7 @@ export class AuthResolver {
 
   @Mutation(() => AuthResponseObject)
   async login(@Args('input') input: LoginInput): Promise<AuthResponseObject> {
-    const authResponse = await this.authService.login(input);
+    const authResponse = await this.authService.login(input.email, input.password);
     // Get full user profile to include missing fields
     const userProfile = await this.authService.getProfile(authResponse.user.id);
     return {

@@ -23,10 +23,10 @@ export class User {
   role: string;
 
   @Prop()
-  firstName?: string;
+  firstName: string;
 
   @Prop()
-  lastName?: string;
+  lastName: string;
 
   @Prop()
   lastLoginAt?: Date;

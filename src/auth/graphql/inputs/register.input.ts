@@ -17,13 +17,11 @@ export class RegisterInput {
   @MinLength(8)
   password: string;
 
-  @Field({ nullable: true })
+  @Field()
   @IsString()
-  @IsOptional()
-  firstName?: string;
+  firstName: string;
 
-  @Field({ nullable: true })
+  @Field()
   @IsString()
-  @IsOptional()
-  lastName?: string;
+  lastName: string;
 }
