@@ -34,6 +34,12 @@ export class User {
   @Prop({ default: true })
   isActive: boolean;
 
+  @Prop()
+  refreshToken?: string;
+
+  @Prop()
+  refreshTokenExpiresAt?: Date;
+
   // Mongoose automatically adds these with timestamps: true
   createdAt: Date;
   updatedAt: Date;

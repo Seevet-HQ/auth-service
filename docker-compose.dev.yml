@@ -13,6 +13,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
+      - REDIS_DB=0
     volumes:
       - .:/app
       - /app/node_modules
@@ -46,6 +47,18 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - redis_dev_data:/data
+    networks:
+      - auth-network
+    restart: unless-stopped
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
     networks:
       - auth-network
     restart: unless-stopped

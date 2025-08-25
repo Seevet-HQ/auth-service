@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, RedisClientType } from 'redis';
 
@@ -46,7 +51,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   async get(key: string): Promise<string | null> {
     try {
-      return await this.redisClient.get(key);
+      const result = await this.redisClient.get(key);
+      this.logger.debug(
+        `Redis GET ${key}: ${result ? result.substring(0, 50) + '...' : 'null'}`,
+      );
+      return result;
     } catch (error) {
       this.logger.error(`Failed to get key: ${key}`, error);
       return null;
@@ -55,13 +64,18 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   async set(key: string, value: string, ttl?: number): Promise<void> {
     try {
+      this.logger.debug(
+        `Redis SET ${key}: ${value.substring(0, 50)}... (length: ${value.length})`,
+      );
       if (ttl) {
         await this.redisClient.setEx(key, ttl, value);
       } else {
         await this.redisClient.set(key, value);
       }
+      this.logger.debug(`Redis SET successful for key: ${key}`);
     } catch (error) {
       this.logger.error(`Failed to set key: ${key}`, error);
+      throw error;
     }
   }
 
@@ -70,6 +84,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       await this.redisClient.del(key);
     } catch (error) {
       this.logger.error(`Failed to delete key: ${key}`, error);
+      throw error;
     }
   }
 
