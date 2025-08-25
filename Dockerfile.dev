@@ -1,0 +1,23 @@
+# Development Dockerfile for NestJS application
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies for development
+RUN apk add --no-cache git
+
+# Copy package files
+COPY package*.json ./
+COPY shared/package*.json ./shared/
+
+# Install all dependencies (including dev dependencies)
+RUN npm install --legacy-peer-deps
+
+# Create logs directory
+RUN mkdir -p /app/logs
+
+# Expose port
+EXPOSE 3000
+
+# Start in development mode with hot reloading
+CMD ["npm", "run", "start:dev"]
