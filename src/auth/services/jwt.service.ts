@@ -27,7 +27,9 @@ export class CustomJwtService {
     });
 
     // Store refresh token in Redis with expiration
-    const expiresIn = this.configService.get<number>('jwt.refreshExpiresInSeconds');
+    const expiresIn = this.configService.get<number>(
+      'jwt.refreshExpiresInSeconds',
+    );
     this.redisService.set(`refresh_token:${payload.id}`, token, expiresIn);
 
     return token;
@@ -51,7 +53,9 @@ export class CustomJwtService {
       });
 
       // Check if token exists in Redis
-      const storedToken = await this.redisService.get(`refresh_token:${payload.id}`);
+      const storedToken = await this.redisService.get(
+        `refresh_token:${payload.id}`,
+      );
       if (!storedToken || storedToken !== token) {
         return null;
       }
@@ -67,14 +71,22 @@ export class CustomJwtService {
     await this.redisService.del(`refresh_token:${userId}`);
   }
 
-  async refreshTokens(refreshToken: string): Promise<{ accessToken: string; refreshToken: string } | null> {
+  async refreshTokens(
+    refreshToken: string,
+  ): Promise<{ accessToken: string; refreshToken: string } | null> {
     const payload = await this.verifyRefreshToken(refreshToken);
     if (!payload) {
       return null;
     }
 
-    const newAccessToken = this.generateAccessToken({ id: payload.id, email: payload.email });
-    const newRefreshToken = this.generateRefreshToken({ id: payload.id, email: payload.email });
+    const newAccessToken = this.generateAccessToken({
+      id: payload.id,
+      email: payload.email,
+    });
+    const newRefreshToken = this.generateRefreshToken({
+      id: payload.id,
+      email: payload.email,
+    });
 
     // Revoke old refresh token
     await this.revokeRefreshToken(payload.id);

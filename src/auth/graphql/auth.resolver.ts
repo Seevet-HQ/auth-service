@@ -15,7 +15,9 @@ export class AuthResolver {
   constructor(private readonly authService: AuthService) {}
 
   @Mutation(() => AuthResponseObject)
-  async register(@Args('input') input: RegisterInput): Promise<AuthResponseObject> {
+  async register(
+    @Args('input') input: RegisterInput,
+  ): Promise<AuthResponseObject> {
     const authResponse = await this.authService.register(input);
     // Transform the response to match UserObject structure
     return {
@@ -38,7 +40,10 @@ export class AuthResolver {
 
   @Mutation(() => AuthResponseObject)
   async login(@Args('input') input: LoginInput): Promise<AuthResponseObject> {
-    const authResponse = await this.authService.login(input.email, input.password);
+    const authResponse = await this.authService.login(
+      input.email,
+      input.password,
+    );
     // Get full user profile to include missing fields
     const userProfile = await this.authService.getProfile(authResponse.user.id);
     return {
@@ -49,8 +54,12 @@ export class AuthResolver {
   }
 
   @Mutation(() => AuthResponseObject)
-  async refreshTokens(@Args('input') input: RefreshTokenInput): Promise<AuthResponseObject> {
-    const authResponse = await this.authService.refreshTokens(input.refreshToken);
+  async refreshTokens(
+    @Args('input') input: RefreshTokenInput,
+  ): Promise<AuthResponseObject> {
+    const authResponse = await this.authService.refreshTokens(
+      input.refreshToken,
+    );
     // Get full user profile to include missing fields
     const userProfile = await this.authService.getProfile(authResponse.user.id);
     return {
