@@ -1,9 +1,7 @@
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
 import { GraphQLModule } from '@nestjs/graphql';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppResolver } from './app.resolver';
 import { AuthModule } from './auth/auth.module';
 import configuration from './config/configuration';
@@ -20,23 +18,7 @@ import { UsersModule } from './users/users.module';
       load: [configuration],
       envFilePath: ['.env.local', '.env'],
     }),
-    // Add rate limiting
-    ThrottlerModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        throttlers: [
-          {
-            ttl: 60000, // 1 minute
-            limit: 100, // 100 requests per minute (general)
-          },
-          {
-            ttl: 300000, // 5 minutes
-            limit: 1000, // 1000 requests per 5 minutes
-          },
-        ],
-      }),
-    }),
+ 
     GraphQLModule.forRootAsync<ApolloDriverConfig>({
       driver: ApolloDriver,
       imports: [ConfigModule],
@@ -73,10 +55,10 @@ import { UsersModule } from './users/users.module';
     AppResolver, 
     RedisService,
     SecurityService,
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
+    // {
+      // provide: APP_GUARD,
+      // useClass: ThrottlerGuard,
+    // }, 
   ],
   exports: [RedisService, SecurityService],
 })
