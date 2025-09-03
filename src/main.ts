@@ -26,11 +26,11 @@ async function bootstrap() {
     crossOriginEmbedderPolicy: false, // Allow GraphQL introspection
   }));
 
-  // Configure CORS with security restrictions
+  // Configure CORS with more permissive settings for development
   app.enableCors({
-    origin: configService.get('security.allowedOrigins'),
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    origin: process.env.NODE_ENV === 'development' ? true : configService.get('security.allowedOrigins'),
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
     maxAge: 86400, // Cache preflight for 24 hours
   });
